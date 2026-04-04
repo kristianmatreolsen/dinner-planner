@@ -1,15 +1,28 @@
-import { View, Text, StyleSheet } from "react-native";
+import { Calendar } from "react-native-calendars";
+import { supabase } from "../../lib/supabase";
+import { useEffect, useState } from "react";
 
 export default function Planner() {
+  const [markedDates, setMarkedDates] = useState({});
+
+  useEffect(() => {
+    loadPlanner();
+  }, []);
+
+  const loadPlanner = async () => {
+    const { data } = await supabase.from("planner").select("date");
+    const marks = {};
+    data?.forEach(d => {
+      marks[d.date] = { marked: true };
+    });
+    setMarkedDates(marks);
+  };
+
   return (
-    <View style={styles.container}>
-      <Text style={styles.header}>Weekly Planner</Text>
-      <Text>✨ Calendar UI Coming Soon ✨</Text>
-    </View>
+    <Calendar
+      markedDates={markedDates}
+      onDayPress={(day) => alert(`Selected ${day.dateString}`)}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20 },
-  header: { fontSize: 28, fontWeight: "600", marginBottom: 20 }
-});
+``

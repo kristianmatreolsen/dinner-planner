@@ -12,6 +12,20 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
-, "components/RecipeCard.js", "app/recipes/index.js", "app/planner/index.js", "app/_layout.js", "app/index.js", "components/DinnerCard.js", "components/ShoppingItem.js", "app/shopping/index.js"  ]
+    "expo-env.d.ts",
+    "components/RecipeCard.js",
+    "app/recipes/index.js",
+    "app/planner/index.js",
+    "app/_layout.js",
+    "app/index.js",
+    "app/shopping/index.js",
+    "app/+html.tsx",
+    "app/+not-found.js",
+    "app/modal.js",
+    "components/StyledText.tsx",
+    "components/Themed.tsx",
+    "components/useClientOnlyValue.ts",
+    "components/ExternalLink.tsx",
+    "components/EditScreenInfo.tsx"
+  ]
 }
