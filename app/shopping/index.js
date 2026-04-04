@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { View, Text, FlatList } from "react-native";
+import { View, Text, FlatList, Pressable } from "react-native";
 import { supabase } from "../../lib/supabase";
 
 export default function Shopping() {
@@ -7,24 +7,42 @@ export default function Shopping() {
 
   useEffect(() => {
     fetchItems();
+
+    const channel = supabase
+      .channel("shopping")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "shopping_items" },
+        fetchItems
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
   }, []);
 
   const fetchItems = async () => {
-    const { data, error } = await supabase.from("shopping_items").select("*");
-    if (!error) setItems(data);
+    const { data } = await supabase.from("shopping_items").select("*");
+    setItems(data || []);
+  };
+
+  const toggle = async (item) => {
+    await supabase
+      .from("shopping_items")
+      .update({ checked: !item.checked })
+      .eq("id", item.id);
   };
 
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      <Text style={{ fontSize: 28, fontWeight: "600" }}>Shopping List</Text>
-
-      <FlatList
-        data={items}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <Text style={{ padding: 10, fontSize: 18 }}>• {item.name}</Text>
-        )}
-      />
-    </View>
+    <FlatList
+      data={items}
+      keyExtractor={i => i.id}
+      renderItem={({ item }) => (
+        <Pressable onPress={() => toggle(item)}>
+          <Text style={{ fontSize: 18 }}>
+            {item.checked ? "✅" : "⬜"} {item.name}
+          </Text>
+        </Pressable>
+      )}
+    />
   );
 }

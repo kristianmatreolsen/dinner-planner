@@ -1,28 +1,47 @@
+import { View, Text, Pressable, FlatList } from "react-native";
 import { useEffect, useState } from "react";
-import { View, Text, FlatList } from "react-native";
 import { supabase } from "../../lib/supabase";
-import RecipeCard from "../../components/RecipeCard";
+import { useRouter } from "expo-router";
 
-export default function Recipes() {
+export default function RecipeList() {
   const [recipes, setRecipes] = useState([]);
+  const router = useRouter();
 
   useEffect(() => {
-    fetchRecipes();
+    load();
   }, []);
 
-  const fetchRecipes = async () => {
-    const { data, error } = await supabase.from("recipes").select("*");
-    if (!error) setRecipes(data);
-  };
+  async function load() {
+    const { data } = await supabase
+      .from("recipes")
+      .select("id, title")
+      .order("title");
+
+    setRecipes(data ?? []);
+  }
 
   return (
-    <View style={{ flex: 1, padding: 20 }}>
-      <Text style={{ fontSize: 28, fontWeight: "600" }}>Recipes</Text>
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 24, marginBottom: 10 }}>Recipes</Text>
+
+      <Pressable
+        onPress={() => router.push("/recipes/new")}
+        style={{ marginBottom: 10 }}
+      >
+        <Text style={{ color: "#007AFF" }}>+ Add new recipe</Text>
+      </Pressable>
 
       <FlatList
         data={recipes}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <RecipeCard recipe={item} />}
+        renderItem={({ item }) => (
+          <Pressable
+            onPress={() => router.push(`/recipes/${item.id}`)}
+            style={{ padding: 10 }}
+          >
+            <Text>{item.title}</Text>
+          </Pressable>
+        )}
       />
     </View>
   );
