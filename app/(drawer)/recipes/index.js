@@ -6,33 +6,49 @@ import {
   ScrollView,
   TextInput,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { useState, useCallback } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../../../lib/supabase";
-import { useRouter } from "expo-router";
 
 export default function RecipeList() {
-  const [recipes, setRecipes] = useState([]);
-  const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("title");
-  const [sortDirection, setSortDirection] = useState("asc");
-
   const router = useRouter();
 
-  useEffect(() => {
-    loadRecipes();
-  }, []);
+  const [recipes, setRecipes] = useState([]);
+  const [search, setSearch] = useState("");
+
+  const [sortBy, setSortBy] = useState("title"); // title | updated_at | view_count
+  const [sortDirection, setSortDirection] = useState("asc");
+
+  /* ✅ Reload whenever screen becomes active */
+  useFocusEffect(
+    useCallback(() => {
+      loadRecipes();
+    }, [])
+  );
 
   async function loadRecipes() {
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from("recipes")
       .select("id, title, updated_at, is_favorite, view_count");
 
-    if (error) {
-      console.error(error);
-      return;
-    }
-
     setRecipes(data ?? []);
+  }
+
+  /* ✅ Favourite toggle */
+  async function toggleFavorite(recipe) {
+    const next = !recipe.is_favorite;
+
+    // optimistic UI update
+    setRecipes((prev) =>
+      prev.map((r) =>
+        r.id === recipe.id ? { ...r, is_favorite: next } : r
+      )
+    );
+
+    await supabase
+      .from("recipes")
+      .update({ is_favorite: next })
+      .eq("id", recipe.id);
   }
 
   function toggleSort(column) {
@@ -51,68 +67,44 @@ export default function RecipeList() {
 
   function formatDate(dateString) {
     if (!dateString) return "—";
-    const date = new Date(dateString);
-    return date.toLocaleDateString(undefined, {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return new Date(dateString).toLocaleString();
   }
 
-  function getVisibleRecipes() {
-    let list = recipes.filter((r) =>
+  /* ✅ Filter + sort */
+  const visibleRecipes = [...recipes]
+    .filter((r) =>
       r.title.toLowerCase().includes(search.toLowerCase())
-    );
-
-    list.sort((a, b) => {
+    )
+    .sort((a, b) => {
+      // ⭐ favourites first
       if (a.is_favorite && !b.is_favorite) return -1;
       if (!a.is_favorite && b.is_favorite) return 1;
 
       let result = 0;
-
       if (sortBy === "title") {
         result = a.title.localeCompare(b.title);
       } else if (sortBy === "updated_at") {
-        result = new Date(a.updated_at) - new Date(b.updated_at);
+        result =
+          new Date(a.updated_at) - new Date(b.updated_at);
       } else if (sortBy === "view_count") {
-        result = (a.view_count ?? 0) - (b.view_count ?? 0);
+        result =
+          (a.view_count ?? 0) - (b.view_count ?? 0);
       }
 
       return sortDirection === "asc" ? result : -result;
     });
 
-    return list;
-  }
-
-  const visibleRecipes = getVisibleRecipes();
-
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      {/* SEARCH + ADD */}
+      {/* Top row */}
       <View style={styles.topRow}>
-        <View style={styles.searchWrapper}>
-          <TextInput
-            placeholder="🔍︎ Search recipes"
-            placeholderTextColor="#000"
-            value={search}
-            onChangeText={setSearch}
-            style={styles.searchInput}
-          />
+        <TextInput
+          placeholder="🔍︎ Search recipes"
+          value={search}
+          onChangeText={setSearch}
+          style={styles.searchInput}
+        />
 
-          {search.length > 0 && (
-            <Pressable
-              onPress={() => setSearch("")}
-              style={styles.clearButton}
-              hitSlop={10}
-            >
-              <Text style={styles.clearText}>×</Text>
-            </Pressable>
-          )}
-        </View>
-
-        {/* ✅ UPDATED ROUTE */}
         <Pressable
           style={styles.addButton}
           onPress={() => router.push("/recipes/create")}
@@ -121,9 +113,13 @@ export default function RecipeList() {
         </Pressable>
       </View>
 
-      {/* TABLE HEADER */}
+      {/* Header */}
       <View style={styles.headerRow}>
-        <View style={styles.starCol} />
+        
+<View style={styles.starCol}>
+  <Text style={styles.sortIndicator}>↑↓</Text>
+</View>
+
 
         <Pressable
           style={[styles.headerCell, styles.titleCol]}
@@ -138,7 +134,7 @@ export default function RecipeList() {
           style={[styles.headerCell, styles.viewCol]}
           onPress={() => toggleSort("view_count")}
         >
-          <Text style={[styles.headerText, styles.centerText]}>
+          <Text style={[styles.headerText, styles.center]}>
             Viewed{renderSortArrow("view_count")}
           </Text>
         </Pressable>
@@ -147,13 +143,13 @@ export default function RecipeList() {
           style={[styles.headerCell, styles.dateCol]}
           onPress={() => toggleSort("updated_at")}
         >
-          <Text style={[styles.headerText, styles.dateText]}>
+          <Text style={styles.headerText}>
             Last edited{renderSortArrow("updated_at")}
           </Text>
         </Pressable>
       </View>
 
-      {/* TABLE ROWS */}
+      {/* Rows */}
       {visibleRecipes.map((recipe) => (
         <Pressable
           key={recipe.id}
@@ -165,7 +161,14 @@ export default function RecipeList() {
             router.push(`/recipes/view/${recipe.id}`)
           }
         >
-          <View style={styles.starCol}>
+          {/* ✅ Favourite star */}
+          <Pressable
+            style={styles.starCol}
+            onPress={(e) => {
+              e.stopPropagation();
+              toggleFavorite(recipe);
+            }}
+          >
             <Text
               style={[
                 styles.star,
@@ -174,13 +177,19 @@ export default function RecipeList() {
             >
               ★
             </Text>
-          </View>
+          </Pressable>
 
           <Text style={[styles.cell, styles.titleCol]}>
             {recipe.title}
           </Text>
 
-          <Text style={[styles.cell, styles.viewCol, styles.centerText]}>
+          <Text
+            style={[
+              styles.cell,
+              styles.viewCol,
+              styles.center,
+            ]}
+          >
             {recipe.view_count ?? 0}
           </Text>
 
@@ -200,102 +209,102 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+
   topRow: {
     flexDirection: "row",
-    alignItems: "center",
     gap: 12,
     marginBottom: 16,
   },
-  searchWrapper: {
-    flex: 1,
-    position: "relative",
-    justifyContent: "center",
-  },
+
   searchInput: {
+    flex: 1,
     borderWidth: 1,
     borderColor: "#ccc",
     borderRadius: 6,
-    paddingVertical: 8,
-    paddingLeft: 10,
-    paddingRight: 34,
+    padding: 8,
   },
-  clearButton: {
-    position: "absolute",
-    right: 8,
-    height: "100%",
-    justifyContent: "center",
-  },
-  clearText: {
-    fontSize: 18,
-    color: "#666",
-  },
+
   addButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
     backgroundColor: "#007AFF",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 6,
   },
+
   addText: {
     color: "white",
     fontWeight: "600",
   },
+
   headerRow: {
     flexDirection: "row",
     borderBottomWidth: 1,
-    borderBottomColor: "#ccc",
+    borderColor: "#ccc",
     paddingBottom: 8,
     marginBottom: 8,
     alignItems: "center",
   },
+
   headerCell: {
     justifyContent: "center",
   },
+
   headerText: {
     fontWeight: "600",
     fontSize: 14,
     color: "#555",
   },
+
   row: {
     flexDirection: "row",
     paddingVertical: 10,
     borderBottomWidth: 1,
-    borderBottomColor: "#eee",
+    borderColor: "#eee",
     alignItems: "center",
   },
+
   rowHover: {
     backgroundColor: "#f5f7fa",
   },
+
   cell: {
     fontSize: 15,
   },
+
   starCol: {
     width: 30,
     alignItems: "center",
   },
+
+sortIndicator: {
+  fontSize: 14,
+  color: "#555",
+  lineHeight: 12,
+},
+
   star: {
     fontSize: 18,
-    color: "#ccc",
+    color: "#ccc", // ✅ gray when not favourite
   },
+
   starActive: {
-    color: "#FFD700",
+    color: "#FFD700", // ✅ gold when favourite
   },
+
   titleCol: {
     flex: 3,
-    paddingLeft: 4,
   },
+
   viewCol: {
     flex: 1,
   },
-  centerText: {
-    textAlign: "center",
-  },
+
   dateCol: {
     flex: 2,
-    textAlign: "right",
-    paddingRight: 4,
-    color: "#555",
+    textAlign: "left",
   },
-  dateText: {
-    textAlign: "right",
+
+  center: {
+    textAlign: "center",
   },
 });

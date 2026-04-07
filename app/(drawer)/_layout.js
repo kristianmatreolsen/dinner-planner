@@ -5,12 +5,19 @@ import {
   Pressable,
   StyleSheet,
   Platform,
+  Animated,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
-import { useEffect, useState } from "react";
+import {
+  Ionicons,
+  MaterialIcons,
+} from "@expo/vector-icons";
+import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  useRouter,
+  usePathname,
+} from "expo-router";
 import { useTheme } from "../../lib/theme-context";
-import { useRouter } from "expo-router";
 
 const PIN_STORAGE_KEY = "drawer_pinned";
 const isWeb = Platform.OS === "web";
@@ -18,98 +25,160 @@ const isWeb = Platform.OS === "web";
 export default function DrawerLayout() {
   const { theme } = useTheme();
   const router = useRouter();
+  const pathname = usePathname();
   const styles = stylesFactory(theme);
+
   const [pinned, setPinned] = useState(false);
 
+  /* ✅ animated rotation for pin */
+  const pinRotation = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
-    AsyncStorage.getItem(PIN_STORAGE_KEY).then((v) =>
-      setPinned(v === "true")
-    );
+    AsyncStorage.getItem(PIN_STORAGE_KEY).then((v) => {
+      const isPinned = v === "true";
+      setPinned(isPinned);
+      pinRotation.setValue(isPinned ? 1 : 0);
+    });
   }, []);
 
   async function togglePinned() {
     const next = !pinned;
     setPinned(next);
     await AsyncStorage.setItem(PIN_STORAGE_KEY, String(next));
+
+    Animated.spring(pinRotation, {
+      toValue: next ? 1 : 0,
+      useNativeDriver: true,
+      friction: 6,
+      tension: 120,
+    }).start();
   }
 
-  const navItem = (label, icon, path) => (
-    <Pressable
-      key={path}
-      style={({ hovered }) => [
-        styles.item,
-        hovered && styles.hover,
-      ]}
-      onPress={() => router.push(path)}
-    >
-      <Ionicons
-        name={icon}
-        size={20}
-        color={theme.colors.text}
-      />
-      <Text style={styles.itemText}>{label}</Text>
-    </Pressable>
-  );
+  const rotate = pinRotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ["45deg", "0deg"],
+  });
+
+  /* ✅ determine active route */
+  function isActive(basePath) {
+    if (basePath === "/") return pathname === "/";
+    return pathname.startsWith(basePath);
+  }
+
+  function navItem(label, icon, path) {
+    const active = isActive(path);
+
+    return (
+      <Pressable
+        key={path}
+        style={({ hovered }) => [
+          styles.navItem,
+          active && styles.navItemActive,
+          hovered && !active && styles.hover,
+        ]}
+        onPress={() => router.push(path)}
+      >
+        <Ionicons
+          name={icon}
+          size={20}
+          color={
+            active
+              ? theme.colors.primary
+              : theme.colors.text
+          }
+        />
+        <Text
+          style={[
+            styles.navText,
+            active && styles.navTextActive,
+          ]}
+        >
+          {label}
+        </Text>
+      </Pressable>
+    );
+  }
 
   return (
     <Drawer
-      screenOptions={{
-        /** ✅ REMOVE ROUTE NAMES (planner/index etc.) */
+      screenOptions={({ navigation }) => ({
         headerTitle: "",
-
-        /** ✅ REMOVE DEFAULT HAMBURGER */
-        headerLeft: () => null,
-
         headerStyle: {
           backgroundColor: theme.colors.surface,
         },
         headerTintColor: theme.colors.text,
 
+        /* ✅ header burger when drawer is closed */
+        headerLeft: () =>
+          !pinned ? (
+            <Pressable
+              style={styles.headerBurger}
+              onPress={() =>
+                navigation.toggleDrawer()
+              }
+            >
+              <Ionicons
+                name="menu"
+                size={22}
+                color={theme.colors.text}
+              />
+            </Pressable>
+          ) : null,
+
         drawerStyle: {
           backgroundColor: theme.colors.background,
           width: pinned && isWeb ? 260 : 240,
         },
-        drawerType: isWeb && pinned ? "permanent" : "front",
-      }}
+        drawerType: isWeb && pinned
+          ? "permanent"
+          : "front",
+      })}
       drawerContent={(props) => (
         <View style={{ flex: 1 }}>
-          {/* Drawer header */}
-          <View style={styles.header}>
-            <View style={styles.headerRow}>
-              {/* ✅ Drawer toggle button (burger inside drawer) */}
-              {!pinned && (
-                <Pressable
-                  onPress={() => props.navigation.toggleDrawer()}
-                  style={({ hovered }) => [
-                    styles.menuButton,
-                    hovered && styles.hover,
-                  ]}
-                >
-                  <Ionicons
-                    name="menu"
-                    size={22}
-                    color={theme.colors.text}
-                  />
-                </Pressable>
-              )}
+          {/* ✅ drawer header */}
+          <View style={styles.drawerHeader}>
+            <Pressable
+              style={({ hovered }) => [
+                styles.iconButton,
+                hovered && styles.hover,
+              ]}
+              onPress={() =>
+                props.navigation.toggleDrawer()
+              }
+            >
+              <Ionicons
+                name="menu"
+                size={22}
+                color={theme.colors.text}
+              />
+            </Pressable>
 
-              <Text style={styles.headerTitle}>Menu</Text>
+            <Text style={styles.drawerTitle}>
+              Menu
+            </Text>
 
-              <Pressable onPress={togglePinned}>
-                <Ionicons
-                  name="pin"
-                  size={18}
-                  color={
-                    pinned
-                      ? theme.colors.primary
-                      : theme.colors.mutedText
-                  }
+            {/* ✅ animated monochrome push‑pin */}
+            <Pressable
+              style={({ hovered }) => [
+                styles.iconButton,
+                hovered && styles.hover,
+              ]}
+              onPress={togglePinned}
+            >
+              <Animated.View
+                style={{
+                  transform: [{ rotate }],
+                }}
+              >
+                <MaterialIcons
+                  name="push-pin"
+                  size={20}
+                  color={theme.colors.text}
                 />
-              </Pressable>
-            </View>
+              </Animated.View>
+            </Pressable>
           </View>
 
-          {/* Drawer items */}
           {navItem("Home", "home-outline", "/")}
           {navItem("Planner", "calendar-outline", "/planner")}
           {navItem("Recipes", "restaurant-outline", "/recipes")}
@@ -127,37 +196,61 @@ export default function DrawerLayout() {
   );
 }
 
+/* ================= STYLES ================= */
+
 const stylesFactory = (theme) =>
   StyleSheet.create({
-    header: {
+    headerBurger: {
+      marginLeft: 12,
+      padding: 6,
+      borderRadius: 6,
+    },
+
+    drawerHeader: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
       padding: 12,
       borderBottomWidth: 1,
       borderColor: theme.colors.border,
     },
-    headerRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-    },
-    headerTitle: {
+
+    drawerTitle: {
       fontSize: 16,
       fontWeight: "600",
       color: theme.colors.text,
     },
-    menuButton: {
+
+    iconButton: {
       padding: 6,
       borderRadius: 6,
     },
-    item: {
+
+    navItem: {
       flexDirection: "row",
       alignItems: "center",
-      padding: 16,
       gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      marginHorizontal: 8,
+      marginVertical: 4,
+      borderRadius: 8,
     },
-    itemText: {
-      color: theme.colors.text,
+
+    navItemActive: {
+      backgroundColor: "#007AFF22",
+    },
+
+    navText: {
       fontSize: 15,
+      color: theme.colors.text,
     },
+
+    navTextActive: {
+      color: theme.colors.primary,
+      fontWeight: "600",
+    },
+
     hover: {
       backgroundColor: "#00000010",
     },

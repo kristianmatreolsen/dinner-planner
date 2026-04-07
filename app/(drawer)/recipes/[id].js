@@ -10,12 +10,13 @@ import {
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Picker } from "@react-native-picker/picker";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../../lib/supabase";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useTheme } from "../../../lib/theme-context";
 import { UNIT_SYSTEMS, toBase, fromBase } from "../../../lib/units";
 
-/* Local labels to avoid Metro issues */
+/* Unit labels */
 const UNIT_LABELS = {
   pcs: "pcs",
   pkg: "pkgs",
@@ -41,11 +42,11 @@ export default function RecipeEditor() {
 
   const [system, setSystem] = useState(null);
   const [ready, setReady] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const [title, setTitle] = useState("");
   const [ingredients, setIngredients] = useState([]);
   const [steps, setSteps] = useState([]);
-  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     init();
@@ -79,11 +80,7 @@ export default function RecipeEditor() {
     setIngredients(
       (data.ingredients || []).map((i) => {
         const c = fromBase(i.quantity, i.unit, stored);
-        return {
-          name: i.name,
-          quantity: c.quantity,
-          unit: c.unit,
-        };
+        return { name: i.name, quantity: c.quantity, unit: c.unit };
       })
     );
     setSteps(data.steps || []);
@@ -94,6 +91,10 @@ export default function RecipeEditor() {
     const copy = [...ingredients];
     copy[index] = { ...copy[index], [field]: value };
     setIngredients(copy);
+  }
+
+  function removeStep(index) {
+    setSteps(steps.filter((_, i) => i !== index));
   }
 
   async function saveRecipe() {
@@ -134,7 +135,7 @@ export default function RecipeEditor() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={{ ...styles.content, flexGrow: 1 }}
+      contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
       <Text style={styles.title}>
@@ -162,8 +163,8 @@ export default function RecipeEditor() {
           />
 
           <TextInput
-            style={[styles.input, styles.flex1]}
-            placeholder="Qty"
+            style={[styles.input, styles.quantityInput]}
+            placeholder="Quantity"
             keyboardType="numeric"
             value={String(ing.quantity)}
             onChangeText={(v) =>
@@ -171,7 +172,7 @@ export default function RecipeEditor() {
             }
           />
 
-          {/* ✅ Styled Picker */}
+          {/* ✅ Old, working dropdown */}
           <View style={styles.pickerWrapper}>
             <Picker
               selectedValue={ing.unit}
@@ -192,19 +193,28 @@ export default function RecipeEditor() {
             </Picker>
           </View>
 
-          <Pressable onPress={() =>
-            setIngredients(ingredients.filter((_, i) => i !== index))
-          }>
-            <Text style={styles.remove}>✕</Text>
+          {/* ✅ Trash button with hover */}
+          <Pressable
+            style={({ hovered }) => [
+              styles.trashButton,
+              hovered && styles.trashHover,
+            ]}
+            onPress={() =>
+              setIngredients(
+                ingredients.filter((_, i) => i !== index)
+              )
+            }
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color="#cc0000"
+            />
           </Pressable>
         </View>
       ))}
 
       <Pressable
-        style={({ hovered }) => [
-          styles.linkButton,
-          hovered && styles.hover,
-        ]}
         onPress={() =>
           setIngredients([
             ...ingredients,
@@ -218,53 +228,52 @@ export default function RecipeEditor() {
       <Text style={styles.sectionTitle}>Steps</Text>
 
       {steps.map((step, idx) => (
-        <TextInput
-          key={idx}
-          style={styles.input}
-          placeholder={`Step ${idx + 1}`}
-          value={step}
-          onChangeText={(v) => {
-            const s = [...steps];
-            s[idx] = v;
-            setSteps(s);
-          }}
-        />
+        <View key={idx} style={styles.stepRow}>
+          <TextInput
+            style={[styles.input, styles.stepInput]}
+            placeholder={`Step ${idx + 1}`}
+            value={step}
+            onChangeText={(v) => {
+              const copy = [...steps];
+              copy[idx] = v;
+              setSteps(copy);
+            }}
+          />
+
+          {/* ✅ Trash for steps */}
+          <Pressable
+            style={({ hovered }) => [
+              styles.trashButton,
+              hovered && styles.trashHover,
+            ]}
+            onPress={() => removeStep(idx)}
+          >
+            <Ionicons
+              name="trash-outline"
+              size={18}
+              color="#cc0000"
+            />
+          </Pressable>
+        </View>
       ))}
 
-      <Pressable
-        style={({ hovered }) => [
-          styles.linkButton,
-          hovered && styles.hover,
-        ]}
-        onPress={() => setSteps([...steps, ""])}
-      >
+      <Pressable onPress={() => setSteps([...steps, ""])}>
         <Text style={styles.link}>+ Add step</Text>
       </Pressable>
 
-      {/* ✅ Unified action buttons */}
       <View style={styles.actions}>
         <Pressable
-          style={({ hovered }) => [
-            styles.buttonBase,
-            styles.secondaryButton,
-            hovered && styles.hover,
-          ]}
+          style={[styles.buttonBase, styles.secondaryButton]}
           onPress={() => router.back()}
         >
-          <Text style={styles.buttonTextSecondary}>Cancel</Text>
+          <Text>Cancel</Text>
         </Pressable>
 
         <Pressable
-          style={({ hovered }) => [
-            styles.buttonBase,
-            styles.primaryButton,
-            saving && { opacity: 0.6 },
-            hovered && styles.hover,
-          ]}
-          disabled={saving}
+          style={[styles.buttonBase, styles.primaryButton]}
           onPress={saveRecipe}
         >
-          <Text style={styles.buttonTextPrimary}>
+          <Text style={{ color: "#fff" }}>
             {saving ? "Saving…" : "Save"}
           </Text>
         </Pressable>
@@ -273,27 +282,13 @@ export default function RecipeEditor() {
   );
 }
 
-/* ================= STYLES ================= */
-
 const stylesFactory = (theme) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: theme.colors.background,
-    },
-    content: {
-      padding: 16,
-    },
-    title: {
-      fontSize: 26,
-      fontWeight: "600",
-      marginBottom: 8,
-    },
-    sectionTitle: {
-      fontSize: 18,
-      marginTop: 24,
-      marginBottom: 8,
-    },
+    container: { flex: 1, backgroundColor: theme.colors.background },
+    content: { padding: 16 },
+    title: { fontSize: 26, fontWeight: "600", marginBottom: 8 },
+    sectionTitle: { fontSize: 18, marginTop: 24, marginBottom: 8 },
+
     input: {
       borderWidth: 1,
       borderColor: "#ccc",
@@ -301,16 +296,27 @@ const stylesFactory = (theme) =>
       padding: 8,
       marginBottom: 8,
     },
+
     row: {
+      flexDirection: "row",
+      gap: 8,
+      alignItems: "center",
+    },
+
+    stepRow: {
       flexDirection: "row",
       gap: 8,
       alignItems: "center",
       marginBottom: 8,
     },
-    flex1: { flex: 1 },
-    flex2: { flex: 2 },
 
-    /* Dropdown */
+    stepInput: {
+      flex: 1,
+    },
+
+    flex2: { flex: 2 },
+    quantityInput: { width: 90, textAlign: "center" },
+
     pickerWrapper: {
       borderWidth: 1,
       borderColor: "#ccc",
@@ -324,10 +330,18 @@ const stylesFactory = (theme) =>
       width: 120,
     },
 
+    trashButton: {
+      padding: 8,
+      borderRadius: 6,
+    },
+    trashHover: {
+      backgroundColor: "#ffdddd",
+    },
+
     actions: {
       flexDirection: "row",
       gap: 12,
-      marginTop: 32,
+      marginTop: 24,
     },
 
     buttonBase: {
@@ -335,38 +349,9 @@ const stylesFactory = (theme) =>
       paddingVertical: 12,
       borderRadius: 8,
       alignItems: "center",
-      justifyContent: "center",
     },
-    primaryButton: {
-      backgroundColor: "#007AFF",
-    },
-    secondaryButton: {
-      backgroundColor: "#f2f2f7",
-      borderWidth: 1,
-      borderColor: "#ccc",
-    },
-    buttonTextPrimary: {
-      color: "#fff",
-      fontWeight: "600",
-    },
-    buttonTextSecondary: {
-      fontWeight: "600",
-    },
+    primaryButton: { backgroundColor: "#007AFF" },
+    secondaryButton: { backgroundColor: "#f2f2f7" },
 
-    linkButton: {
-      alignSelf: "flex-start",
-    },
-    link: {
-      color: "#007AFF",
-      fontWeight: "500",
-    },
-
-    hover: {
-      opacity: 0.85,
-    },
-
-    remove: {
-      color: "#cc0000",
-      fontSize: 16,
-    },
+    link: { color: "#007AFF", marginTop: 8 },
   });

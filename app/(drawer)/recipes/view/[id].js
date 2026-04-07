@@ -1,43 +1,60 @@
 import {
   View,
   Text,
+  ScrollView,
   Pressable,
   StyleSheet,
-  ScrollView,
 } from "react-native";
-import { useEffect, useState } from "react";
+import { useState, useCallback } from "react";
+import { useLocalSearchParams, useFocusEffect, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../../../lib/supabase";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import { useTheme } from "../../../../lib/theme-context";
 
 export default function RecipeView() {
+  const { theme } = useTheme();
+  const styles = stylesFactory(theme);
+
   const { id } = useLocalSearchParams();
   const router = useRouter();
 
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadRecipe();
-  }, [id]);
-
   async function loadRecipe() {
-    const { data, error } = await supabase
+    setLoading(true);
+
+    // ✅ 1. Read current view_count
+    const { data: current } = await supabase
       .from("recipes")
-      .select("id, title, ingredients, steps")
+      .select("view_count, title, ingredients, steps")
       .eq("id", id)
       .single();
 
-    if (error) {
-      console.error(error);
+    if (!current) {
       setLoading(false);
       return;
     }
 
-    setRecipe(data);
+    // ✅ 2. Increment safely
+    await supabase
+      .from("recipes")
+      .update({ view_count: (current.view_count ?? 0) + 1 })
+      .eq("id", id);
+
+    // ✅ 3. Update local state
+    setRecipe(current);
     setLoading(false);
   }
 
-  if (loading) {
+  // ✅ Reload when returning from edit/create
+  useFocusEffect(
+    useCallback(() => {
+      loadRecipe();
+    }, [id])
+  );
+
+  if (loading || !recipe) {
     return (
       <View style={styles.container}>
         <Text>Loading…</Text>
@@ -45,96 +62,90 @@ export default function RecipeView() {
     );
   }
 
-  if (!recipe) {
-    return (
-      <View style={styles.container}>
-        <Text>Recipe not found</Text>
-      </View>
-    );
-  }
-
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-    
-      {/* TITLE */}
-      <Text style={styles.title}>{recipe.title}</Text>
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{recipe.title}</Text>
 
-      {/* INGREDIENTS */}
-      <Text style={styles.sectionTitle}>Ingredients</Text>
-      {(recipe.ingredients ?? []).length === 0 ? (
-        <Text style={styles.empty}>No ingredients</Text>
-      ) : (
-        recipe.ingredients.map((i, idx) => (
+          <Pressable
+            style={({ hovered }) => [
+              styles.editButton,
+              hovered && styles.editHover,
+            ]}
+            onPress={() => router.push(`/recipes/${id}`)}
+          >
+            <Ionicons
+              name="create-outline"
+              size={18}
+              color={theme.colors.primary}
+            />
+            <Text style={styles.editText}>Edit recipe</Text>
+          </Pressable>
+        </View>
+
+        <Text style={styles.sectionTitle}>Ingredients</Text>
+        {(recipe.ingredients || []).map((i, idx) => (
           <Text key={idx} style={styles.item}>
             • {i.quantity} {i.unit} {i.name}
           </Text>
-        ))
-      )}
+        ))}
 
-      {/* STEPS */}
-      <Text style={styles.sectionTitle}>Steps</Text>
-      {(recipe.steps ?? []).length === 0 ? (
-        <Text style={styles.empty}>No steps</Text>
-      ) : (
-        recipe.steps.map((step, idx) => (
+        <Text style={styles.sectionTitle}>Steps</Text>
+        {(recipe.steps || []).map((s, idx) => (
           <Text key={idx} style={styles.item}>
-            {idx + 1}. {step}
+            {idx + 1}. {s}
           </Text>
-        ))
-      )}
-
-      {/* ACTIONS */}
-      <Pressable
-        style={styles.editButton}
-        onPress={() => router.push(`/recipes/${id}`)}
-      >
-        <Text style={styles.editText}>Edit recipe</Text>
-      </Pressable>
+        ))}
+      </View>
     </ScrollView>
   );
 }
 
-/* ================= STYLES ================= */
-
-const styles = StyleSheet.create({
-  container: {
-    padding: 20,
-    paddingBottom: 40,
-  },
-  backLink: {
-    color: "#007AFF",
-    fontSize: 16,
-    marginBottom: 12,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: "600",
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    marginTop: 24,
-    marginBottom: 8,
-  },
-  item: {
-    fontSize: 16,
-    marginBottom: 6,
-  },
-  empty: {
-    fontStyle: "italic",
-    color: "#666",
-  },
-  editButton: {
-    marginTop: 32,
-    backgroundColor: "#007AFF",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 6,
-    alignSelf: "flex-start",
-  },
-  editText: {
-    color: "white",
-    fontWeight: "600",
-  },
-});
+const stylesFactory = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    content: {
+      alignSelf: "center",
+      width: "100%",
+      maxWidth: 680,
+      padding: 16,
+    },
+    titleRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 16,
+    },
+    title: {
+      fontSize: 28,
+      fontWeight: "600",
+    },
+    editButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      padding: 6,
+      borderRadius: 6,
+    },
+    editHover: {
+      backgroundColor: "#00000010",
+    },
+    editText: {
+      color: theme.colors.primary,
+      fontWeight: "500",
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontWeight: "600",
+      marginTop: 24,
+      marginBottom: 8,
+    },
+    item: {
+      fontSize: 15,
+      marginBottom: 6,
+    },
+  });
