@@ -1,7 +1,7 @@
 import { View, StyleSheet } from "react-native";
-import WeekPlanner from "../components/WeekPlanner";
+import WeekPlanner from "../../../components/WeekPlanner";
 
-export default function Home() {
+export default function Planner() {
   return (
     <View style={styles.container}>
       <WeekPlanner />
@@ -15,3 +15,4 @@ const styles = StyleSheet.create({
     paddingBottom: 32, // ✅ gives space below planner
   },
 });
+``

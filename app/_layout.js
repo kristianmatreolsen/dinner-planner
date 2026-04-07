@@ -1,42 +1,31 @@
-import { View, StyleSheet } from "react-native";
 import { Slot } from "expo-router";
-import Sidebar from "../components/Sidebar";
-import { ThemeProvider, useTheme } from "../lib/theme";
-
-function LayoutContent() {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
-
-  return (
-    <View style={[styles.container, isDark && styles.dark]}>
-      <Sidebar />
-      <View style={[styles.content, isDark && styles.dark]}>
-        <Slot />
-      </View>
-    </View>
-  );
-}
+import { ThemeContext } from "../lib/theme-context";
+import { LightTheme, DarkTheme } from "../lib/theme";
+import { useEffect, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Appearance } from "react-native";
 
 export default function RootLayout() {
+  const [theme, setTheme] = useState(LightTheme);
+
+  useEffect(() => {
+    loadTheme();
+  }, []);
+
+  async function loadTheme() {
+    const stored = await AsyncStorage.getItem("color_scheme");
+
+    if (stored === "dark") setTheme(DarkTheme);
+    else if (stored === "light") setTheme(LightTheme);
+    else {
+      const system = Appearance.getColorScheme();
+      setTheme(system === "dark" ? DarkTheme : LightTheme);
+    }
+  }
+
   return (
-    <ThemeProvider>
-      <LayoutContent />
-    </ThemeProvider>
+    <ThemeContext.Provider value={{ theme, setTheme }}>
+      <Slot />
+    </ThemeContext.Provider>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "#ffffff",
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: "#ffffff",
-  },
-  dark: {
-    backgroundColor: "#121212", // dark grey
-  },
-});
