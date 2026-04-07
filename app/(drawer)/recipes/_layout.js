@@ -9,8 +9,12 @@ export default function RecipesLayout() {
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.surface,
+          height: 56,                    // ✅ MATCH drawer
+          borderBottomWidth: 1,          // ✅ MATCH drawer
+          borderBottomColor: theme.colors.border,
         },
         headerTintColor: theme.colors.text,
+        headerTitleAlign: "left",
       }}
     >
       {/* Recipes list */}

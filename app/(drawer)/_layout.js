@@ -7,20 +7,17 @@ import {
   Platform,
   Animated,
 } from "react-native";
-import {
-  Ionicons,
-  MaterialIcons,
-} from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import {
-  useRouter,
-  usePathname,
-} from "expo-router";
+import { useRouter, usePathname } from "expo-router";
 import { useTheme } from "../../lib/theme-context";
 
 const PIN_STORAGE_KEY = "drawer_pinned";
 const isWeb = Platform.OS === "web";
+
+const COLLAPSED_WIDTH = 56;
+const EXPANDED_WIDTH = 240;
 
 export default function DrawerLayout() {
   const { theme } = useTheme();
@@ -29,37 +26,43 @@ export default function DrawerLayout() {
   const styles = stylesFactory(theme);
 
   const [pinned, setPinned] = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
-  /* ✅ animated rotation for pin */
   const pinRotation = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     AsyncStorage.getItem(PIN_STORAGE_KEY).then((v) => {
-      const isPinned = v === "true";
-      setPinned(isPinned);
-      pinRotation.setValue(isPinned ? 1 : 0);
+      const value = v === "true";
+      setPinned(value);
+      setExpanded(value);
+      pinRotation.setValue(value ? 1 : 0);
     });
   }, []);
 
   async function togglePinned() {
     const next = !pinned;
     setPinned(next);
+    setExpanded(next);
     await AsyncStorage.setItem(PIN_STORAGE_KEY, String(next));
 
     Animated.spring(pinRotation, {
       toValue: next ? 1 : 0,
       useNativeDriver: true,
-      friction: 6,
-      tension: 120,
     }).start();
   }
 
-  const rotate = pinRotation.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["45deg", "0deg"],
-  });
+  async function closeDrawerAndUnpin() {
+    setPinned(false);
+    setExpanded(false);
+    pinRotation.setValue(0);
+    await AsyncStorage.setItem(PIN_STORAGE_KEY, "false");
+  }
 
-  /* ✅ determine active route */
+  const drawerWidth =
+    pinned || expanded ? EXPANDED_WIDTH : COLLAPSED_WIDTH;
+
+  const showLabels = pinned || expanded;
+
   function isActive(basePath) {
     if (basePath === "/") return pathname === "/";
     return pathname.startsWith(basePath);
@@ -71,112 +74,125 @@ export default function DrawerLayout() {
     return (
       <Pressable
         key={path}
-        style={({ hovered }) => [
+        style={[
           styles.navItem,
           active && styles.navItemActive,
-          hovered && !active && styles.hover,
         ]}
-        onPress={() => router.push(path)}
+        onPress={() => {
+          router.push(path);
+          if (!pinned) setExpanded(false);
+        }}
       >
         <Ionicons
           name={icon}
-          size={20}
+          size={22}
           color={
-            active
-              ? theme.colors.primary
-              : theme.colors.text
+            active ? theme.colors.primary : theme.colors.text
           }
         />
-        <Text
-          style={[
-            styles.navText,
-            active && styles.navTextActive,
-          ]}
-        >
-          {label}
-        </Text>
+        {showLabels && (
+          <Text
+            style={[
+              styles.navText,
+              active && styles.navTextActive,
+            ]}
+          >
+            {label}
+          </Text>
+        )}
       </Pressable>
     );
   }
 
   return (
     <Drawer
-      screenOptions={({ navigation }) => ({
+      screenListeners={{
+        drawerClose: () => {
+          if (!pinned) {
+            setExpanded(false);
+            pinRotation.setValue(0);
+          }
+        },
+      }}
+      screenOptions={{
         headerTitle: "",
         headerStyle: {
+          height: 56,
           backgroundColor: theme.colors.surface,
+          borderBottomWidth: 1,
+          borderBottomColor: theme.colors.border,
         },
-        headerTintColor: theme.colors.text,
 
-        /* ✅ header burger when drawer is closed */
-        headerLeft: () =>
-          !pinned ? (
-            <Pressable
-              style={styles.headerBurger}
-              onPress={() =>
-                navigation.toggleDrawer()
-              }
-            >
-              <Ionicons
-                name="menu"
-                size={22}
-                color={theme.colors.text}
-              />
-            </Pressable>
-          ) : null,
+        // ✅ NO BURGER IN HEADER ANYMORE
+        headerLeft: () => null,
 
+        drawerType: "permanent",
         drawerStyle: {
+          width: drawerWidth,
           backgroundColor: theme.colors.background,
-          width: pinned && isWeb ? 260 : 240,
         },
-        drawerType: isWeb && pinned
-          ? "permanent"
-          : "front",
-      })}
-      drawerContent={(props) => (
+      }}
+      drawerContent={() => (
         <View style={{ flex: 1 }}>
-          {/* ✅ drawer header */}
+          {/* Sidebar header */}
           <View style={styles.drawerHeader}>
-            <Pressable
-              style={({ hovered }) => [
-                styles.iconButton,
-                hovered && styles.hover,
-              ]}
-              onPress={() =>
-                props.navigation.toggleDrawer()
-              }
-            >
-              <Ionicons
-                name="menu"
-                size={22}
-                color={theme.colors.text}
-              />
-            </Pressable>
-
-            <Text style={styles.drawerTitle}>
-              Menu
-            </Text>
-
-            {/* ✅ animated monochrome push‑pin */}
-            <Pressable
-              style={({ hovered }) => [
-                styles.iconButton,
-                hovered && styles.hover,
-              ]}
-              onPress={togglePinned}
-            >
-              <Animated.View
-                style={{
-                  transform: [{ rotate }],
-                }}
+            {!expanded && !pinned ? (
+              /* ☰ when collapsed */
+              <Pressable
+                onPress={() => setExpanded(true)}
+                accessibilityLabel="Open menu"
               >
-                <MaterialIcons
-                  name="push-pin"
-                  size={20}
+                <Ionicons
+                  name="menu"
+                  size={22}
                   color={theme.colors.text}
                 />
-              </Animated.View>
-            </Pressable>
+              </Pressable>
+            ) : (
+              /* ✕ when expanded */
+              <Pressable
+                onPress={closeDrawerAndUnpin}
+                accessibilityLabel="Close menu"
+              >
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color={theme.colors.text}
+                />
+              </Pressable>
+            )}
+
+            {showLabels && (
+              <Text style={styles.drawerTitle}>Menu</Text>
+            )}
+
+            {showLabels ? (
+              <Pressable
+                onPress={togglePinned}
+                accessibilityLabel="Pin menu"
+              >
+                <Animated.View
+                  style={{
+                    transform: [
+                      {
+                        rotate: pinRotation.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: ["45deg", "0deg"],
+                        }),
+                      },
+                    ],
+                  }}
+                >
+                  <MaterialIcons
+                    name="push-pin"
+                    size={20}
+                    color={theme.colors.text}
+                  />
+                </Animated.View>
+              </Pressable>
+            ) : (
+              <View style={{ width: 20 }} />
+            )}
           </View>
 
           {navItem("Home", "home-outline", "/")}
@@ -200,19 +216,14 @@ export default function DrawerLayout() {
 
 const stylesFactory = (theme) =>
   StyleSheet.create({
-    headerBurger: {
-      marginLeft: 12,
-      padding: 6,
-      borderRadius: 6,
-    },
-
     drawerHeader: {
+      height: 56,
       flexDirection: "row",
       alignItems: "center",
       justifyContent: "space-between",
-      padding: 12,
+      paddingHorizontal: 12,
       borderBottomWidth: 1,
-      borderColor: theme.colors.border,
+      borderBottomColor: theme.colors.border,
     },
 
     drawerTitle: {
@@ -221,19 +232,12 @@ const stylesFactory = (theme) =>
       color: theme.colors.text,
     },
 
-    iconButton: {
-      padding: 6,
-      borderRadius: 6,
-    },
-
     navItem: {
       flexDirection: "row",
       alignItems: "center",
       gap: 12,
       paddingHorizontal: 16,
       paddingVertical: 14,
-      marginHorizontal: 8,
-      marginVertical: 4,
       borderRadius: 8,
     },
 
@@ -249,9 +253,5 @@ const stylesFactory = (theme) =>
     navTextActive: {
       color: theme.colors.primary,
       fontWeight: "600",
-    },
-
-    hover: {
-      backgroundColor: "#00000010",
     },
   });
