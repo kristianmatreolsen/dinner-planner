@@ -10,6 +10,7 @@ import {
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { getMonday, addDays, formatISO } from "../lib/dates";
+import { useTheme } from "../lib/theme/theme-context";
 
 /* ================== CONSTANTS ================== */
 
@@ -25,13 +26,11 @@ const DAYS = [
 
 /* ================== HELPERS ================== */
 
-// Date range (e.g. Apr 1 – Apr 7)
 function formatDateRange(start, end) {
   const opts = { month: "short", day: "numeric" };
   return `${start.toLocaleDateString(undefined, opts)} – ${end.toLocaleDateString(undefined, opts)}`;
 }
 
-// ISO week number
 function getISOWeekNumber(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -40,7 +39,6 @@ function getISOWeekNumber(date) {
   return Math.ceil(((d - yearStart) / 86400000 + 1) / 7);
 }
 
-// ISO week-year (important around New Year)
 function getISOWeekYear(date) {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -51,6 +49,9 @@ function getISOWeekYear(date) {
 /* ================== MAIN COMPONENT ================== */
 
 export default function WeekPlanner() {
+  const { theme } = useTheme();
+  const styles = stylesFactory(theme);
+
   const [weekOffset, setWeekOffset] = useState(0);
   const [planner, setPlanner] = useState({});
   const [recipes, setRecipes] = useState([]);
@@ -84,7 +85,7 @@ export default function WeekPlanner() {
       .lte("date", formatISO(addDays(monday, 6)));
 
     const mapped = {};
-    data?.forEach(row => {
+    data?.forEach((row) => {
       mapped[row.date] = row.recipe?.title ?? null;
     });
 
@@ -157,7 +158,6 @@ export default function WeekPlanner() {
     <View style={styles.container}>
       <Text style={styles.title}>Weekly planned dinners</Text>
 
-      {/* ================== WEEK NAV ================== */}
       <View
         style={[
           styles.weekNav,
@@ -166,7 +166,7 @@ export default function WeekPlanner() {
       >
         <Pressable
           style={styles.navButton}
-          onPress={() => setWeekOffset(w => w - 1)}
+          onPress={() => setWeekOffset((w) => w - 1)}
         >
           <Text style={styles.navArrow}>← Previous</Text>
         </Pressable>
@@ -182,13 +182,12 @@ export default function WeekPlanner() {
 
         <Pressable
           style={styles.navButton}
-          onPress={() => setWeekOffset(w => w + 1)}
+          onPress={() => setWeekOffset((w) => w + 1)}
         >
-          <Text style={styles.navArrow}>Upcoming →</Text>
+          <Text style={styles.navArrow}>Next →</Text>
         </Pressable>
       </View>
 
-      {/* ================== PLANNER TABLE ================== */}
       <View style={styles.table}>
         {DAYS.map((day, index) => {
           const date = formatISO(addDays(monday, index));
@@ -204,7 +203,12 @@ export default function WeekPlanner() {
                 isToday && styles.todayRow,
               ]}
             >
-              <Text style={[styles.day, isToday && styles.todayDay]}>
+              <Text
+                style={[
+                  styles.day,
+                  isToday && styles.todayDay,
+                ]}
+              >
                 {day}
               </Text>
 
@@ -212,7 +216,7 @@ export default function WeekPlanner() {
                 style={styles.cell}
                 onPress={() => openForDate(date)}
               >
-                <Text style={isToday && styles.todayText}>
+                <Text style={styles.cellText}>
                   {dinner || "Insert dinner"}
                 </Text>
               </Pressable>
@@ -227,11 +231,11 @@ export default function WeekPlanner() {
         })}
       </View>
 
-      {/* ================== MODAL ================== */}
       {showModal && (
         Platform.OS === "web" ? (
           <View style={styles.overlay}>
             <ModalContent
+              styles={styles}
               recipes={recipes}
               customRecipe={customRecipe}
               setCustomRecipe={setCustomRecipe}
@@ -244,6 +248,7 @@ export default function WeekPlanner() {
         ) : (
           <Modal visible animationType="slide">
             <ModalContent
+              styles={styles}
               recipes={recipes}
               customRecipe={customRecipe}
               setCustomRecipe={setCustomRecipe}
@@ -259,9 +264,10 @@ export default function WeekPlanner() {
   );
 }
 
-/* ================== MODAL CONTENT ================== */
+/* ================== MODAL ================== */
 
 function ModalContent({
+  styles,
   recipes,
   customRecipe,
   setCustomRecipe,
@@ -277,18 +283,19 @@ function ModalContent({
       <TextInput
         style={styles.input}
         placeholder="Type a dinner…"
+        placeholderTextColor={styles.muted.color}
         value={customRecipe}
         onChangeText={(text) => {
           setCustomRecipe(text);
           setSuggestions(
-            recipes.filter(r =>
+            recipes.filter((r) =>
               r.title.toLowerCase().includes(text.toLowerCase())
             )
           );
         }}
       />
 
-      {suggestions.map(r => (
+      {suggestions.map((r) => (
         <Pressable key={r.id} onPress={() => saveRecipe(r.id)}>
           <Text style={styles.suggestion}>{r.title}</Text>
         </Pressable>
@@ -298,11 +305,11 @@ function ModalContent({
         style={styles.saveButton}
         onPress={() => saveRecipe(null, customRecipe)}
       >
-        <Text style={{ color: "white" }}>Save Custom Dinner</Text>
+        <Text style={styles.saveText}>Save custom dinner</Text>
       </Pressable>
 
       <Pressable onPress={close} style={styles.cancel}>
-        <Text>Cancel</Text>
+        <Text style={styles.cancelText}>Cancel</Text>
       </Pressable>
     </View>
   );
@@ -310,53 +317,115 @@ function ModalContent({
 
 /* ================== STYLES ================== */
 
-const styles = StyleSheet.create({
-  container: { padding: 20 },
-  title: { fontSize: 24, fontWeight: "600", textAlign: "center" },
+const stylesFactory = (theme) =>
+  StyleSheet.create({
+    container: {
+      padding: 20,
+      backgroundColor: theme.colors.background,
+    },
+    title: {
+      fontSize: 24,
+      fontWeight: "600",
+      textAlign: "center",
+      color: theme.colors.text,
+    },
 
-  /* Week navigation */
-  weekNav: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginVertical: 15,
-    padding: 10,
-    borderRadius: 8,
-  },
-  currentWeekNav: { backgroundColor: "#e6f0ff" },
-  navButton: { paddingHorizontal: 16, paddingVertical: 8 },
-  navArrow: { fontSize: 20, fontWeight: "600" },
-  navCenter: { alignItems: "center" },
-  weekLabel: { fontWeight: "600" },
-  weekRange: { fontSize: 12, color: "#555" },
+    weekNav: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginVertical: 15,
+      padding: 10,
+      borderRadius: 8,
+      backgroundColor: theme.colors.surface,
+    },
+    currentWeekNav: {
+      backgroundColor: theme.colors.rowHover,
+    },
+    navButton: { paddingHorizontal: 16, paddingVertical: 8 },
+    navArrow: { fontSize: 16, fontWeight: "600", color: theme.colors.text },
+    navCenter: { alignItems: "center" },
+    weekLabel: { fontWeight: "600", color: theme.colors.text },
+    weekRange: { fontSize: 12, color: theme.colors.mutedText },
 
-  /* Table */
-  table: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8 },
-  row: { flexDirection: "row", alignItems: "center", padding: 12 },
-  altRow: { backgroundColor: "#f5f5f5" },
-  todayRow: {
-    backgroundColor: "#dbeeff",
-    borderLeftWidth: 4,
-    borderLeftColor: "#007AFF",
-  },
-  day: { width: 120, fontWeight: "600" },
-  todayDay: { color: "#007AFF" },
-  cell: { flex: 1 },
-  todayText: { fontWeight: "700" },
-  remove: { color: "red", marginLeft: 10 },
+    table: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      borderRadius: 8,
+      overflow: "hidden",
+    },
+    row: {
+      flexDirection: "row",
+      alignItems: "center",
+      padding: 12,
+      backgroundColor: theme.colors.row,
+    },
+    altRow: {
+      backgroundColor: theme.colors.rowAlt,
+    },
+    todayRow: {
+      backgroundColor: theme.colors.rowHover,
+      borderLeftWidth: 4,
+      borderLeftColor: theme.colors.primary,
+    },
+    day: {
+      width: 120,
+      fontWeight: "600",
+      color: theme.colors.text,
+    },
+    todayDay: {
+      color: theme.colors.primary,
+    },
+    cell: { flex: 1 },
+    cellText: {
+      color: theme.colors.text,
+    },
+    remove: { color: theme.colors.danger, marginLeft: 10 },
 
-  /* Modal */
-  overlay: {
-    position: "fixed",
-    inset: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  modal: { backgroundColor: "white", padding: 20, width: 300, borderRadius: 8 },
-  modalTitle: { fontSize: 18, marginBottom: 10 },
-  input: { borderWidth: 1, padding: 8, marginBottom: 10 },
-  suggestion: { padding: 6, borderBottomWidth: 1 },
-  saveButton: { backgroundColor: "#007AFF", padding: 10, marginTop: 10 },
-  cancel: { marginTop: 10, alignItems: "center" },
-});
+    overlay: {
+      position: "fixed",
+      inset: 0,
+      backgroundColor: "rgba(0,0,0,0.5)",
+      justifyContent: "center",
+      alignItems: "center",
+    },
+    modal: {
+      backgroundColor: theme.colors.surface,
+      padding: 20,
+      width: 300,
+      borderRadius: 8,
+    },
+    modalTitle: {
+      fontSize: 18,
+      marginBottom: 10,
+      color: theme.colors.text,
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceAlt,
+      color: theme.colors.text,
+      padding: 8,
+      marginBottom: 10,
+    },
+    suggestion: {
+      padding: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: theme.colors.divider,
+      color: theme.colors.text,
+    },
+    saveButton: {
+      backgroundColor: theme.colors.buttonPrimary,
+      padding: 10,
+      marginTop: 10,
+      borderRadius: 6,
+      alignItems: "center",
+    },
+    saveText: {
+      color: theme.colors.buttonPrimaryText,
+      fontWeight: "600",
+    },
+    cancel: { marginTop: 10, alignItems: "center" },
+    cancelText: { color: theme.colors.text },
+    muted: { color: theme.colors.mutedText },
+  });
