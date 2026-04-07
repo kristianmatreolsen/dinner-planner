@@ -1,5 +1,5 @@
 import { Stack } from "expo-router";
-import { useTheme } from "../../../lib/theme-context";
+import { useTheme } from "../../../lib/theme/theme-context";
 
 export default function RecipesLayout() {
   const { theme } = useTheme();
@@ -9,12 +9,10 @@ export default function RecipesLayout() {
       screenOptions={{
         headerStyle: {
           backgroundColor: theme.colors.surface,
-          height: 56,                    // ✅ MATCH drawer
-          borderBottomWidth: 1,          // ✅ MATCH drawer
+          borderBottomWidth: 1,
           borderBottomColor: theme.colors.border,
         },
         headerTintColor: theme.colors.text,
-        headerTitleAlign: "left",
       }}
     >
       {/* Recipes list */}
@@ -29,7 +27,7 @@ export default function RecipesLayout() {
         options={{ title: "Recipe" }}
       />
 
-      {/* Edit + Create recipe */}
+      {/* Edit / Create recipe */}
       <Stack.Screen
         name="[id]"
         options={{ title: "Edit recipe" }}

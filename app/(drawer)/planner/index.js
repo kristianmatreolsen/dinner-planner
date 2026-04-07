@@ -1,7 +1,11 @@
 import { View, StyleSheet } from "react-native";
+import { useTheme } from "../../../lib/theme/theme-context";
 import WeekPlanner from "../../../components/WeekPlanner";
 
 export default function Planner() {
+  const { theme } = useTheme();
+  const styles = stylesFactory(theme);
+
   return (
     <View style={styles.container}>
       <WeekPlanner />
@@ -9,10 +13,11 @@ export default function Planner() {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingBottom: 32, // ✅ gives space below planner
-  },
-});
-``
+const stylesFactory = (theme) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+      paddingBottom: 32,
+    },
+  });

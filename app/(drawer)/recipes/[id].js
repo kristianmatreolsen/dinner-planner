@@ -13,7 +13,7 @@ import { Picker } from "@react-native-picker/picker";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../../lib/supabase";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useTheme } from "../../../lib/theme-context";
+import { useTheme } from "../../../lib/theme/theme-context";
 import { UNIT_SYSTEMS, toBase, fromBase } from "../../../lib/units";
 
 /* Unit labels */
@@ -58,7 +58,6 @@ export default function RecipeEditor() {
     setSystem(stored);
 
     if (isNew) {
-      setTitle("");
       setIngredients([{ name: "", quantity: "", unit: "pcs" }]);
       setSteps([""]);
       setReady(true);
@@ -127,7 +126,7 @@ export default function RecipeEditor() {
   if (!ready) {
     return (
       <View style={styles.container}>
-        <Text>Loading…</Text>
+        <Text style={styles.muted}>Loading…</Text>
       </View>
     );
   }
@@ -145,6 +144,7 @@ export default function RecipeEditor() {
       <TextInput
         style={styles.input}
         placeholder="Recipe title"
+        placeholderTextColor={theme.colors.mutedText}
         value={title}
         onChangeText={setTitle}
       />
@@ -156,6 +156,7 @@ export default function RecipeEditor() {
           <TextInput
             style={[styles.input, styles.flex2]}
             placeholder="Name"
+            placeholderTextColor={theme.colors.mutedText}
             value={ing.name}
             onChangeText={(v) =>
               updateIngredient(index, "name", v)
@@ -164,7 +165,8 @@ export default function RecipeEditor() {
 
           <TextInput
             style={[styles.input, styles.quantityInput]}
-            placeholder="Quantity"
+            placeholder="Qty"
+            placeholderTextColor={theme.colors.mutedText}
             keyboardType="numeric"
             value={String(ing.quantity)}
             onChangeText={(v) =>
@@ -172,7 +174,6 @@ export default function RecipeEditor() {
             }
           />
 
-          {/* ✅ Old, working dropdown */}
           <View style={styles.pickerWrapper}>
             <Picker
               selectedValue={ing.unit}
@@ -193,7 +194,6 @@ export default function RecipeEditor() {
             </Picker>
           </View>
 
-          {/* ✅ Trash button with hover */}
           <Pressable
             style={({ hovered }) => [
               styles.trashButton,
@@ -208,7 +208,7 @@ export default function RecipeEditor() {
             <Ionicons
               name="trash-outline"
               size={18}
-              color="#cc0000"
+              color={theme.colors.danger}
             />
           </Pressable>
         </View>
@@ -232,6 +232,7 @@ export default function RecipeEditor() {
           <TextInput
             style={[styles.input, styles.stepInput]}
             placeholder={`Step ${idx + 1}`}
+            placeholderTextColor={theme.colors.mutedText}
             value={step}
             onChangeText={(v) => {
               const copy = [...steps];
@@ -240,7 +241,6 @@ export default function RecipeEditor() {
             }}
           />
 
-          {/* ✅ Trash for steps */}
           <Pressable
             style={({ hovered }) => [
               styles.trashButton,
@@ -251,7 +251,7 @@ export default function RecipeEditor() {
             <Ionicons
               name="trash-outline"
               size={18}
-              color="#cc0000"
+              color={theme.colors.danger}
             />
           </Pressable>
         </View>
@@ -266,14 +266,14 @@ export default function RecipeEditor() {
           style={[styles.buttonBase, styles.secondaryButton]}
           onPress={() => router.back()}
         >
-          <Text>Cancel</Text>
+          <Text style={styles.secondaryText}>Cancel</Text>
         </Pressable>
 
         <Pressable
           style={[styles.buttonBase, styles.primaryButton]}
           onPress={saveRecipe}
         >
-          <Text style={{ color: "#fff" }}>
+          <Text style={styles.primaryText}>
             {saving ? "Saving…" : "Save"}
           </Text>
         </Pressable>
@@ -284,42 +284,53 @@ export default function RecipeEditor() {
 
 const stylesFactory = (theme) =>
   StyleSheet.create({
-    container: { flex: 1, backgroundColor: theme.colors.background },
-    content: { padding: 16 },
-    title: { fontSize: 26, fontWeight: "600", marginBottom: 8 },
-    sectionTitle: { fontSize: 18, marginTop: 24, marginBottom: 8 },
-
+    container: {
+      flex: 1,
+      backgroundColor: theme.colors.background,
+    },
+    content: {
+      padding: 16,
+    },
+    title: {
+      fontSize: 26,
+      fontWeight: "600",
+      color: theme.colors.text,
+      marginBottom: 8,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      color: theme.colors.text,
+      marginTop: 24,
+      marginBottom: 8,
+    },
     input: {
       borderWidth: 1,
-      borderColor: "#ccc",
+      borderColor: theme.colors.border,
+      backgroundColor: theme.colors.surfaceAlt,
+      color: theme.colors.text,
       borderRadius: 6,
       padding: 8,
       marginBottom: 8,
     },
-
     row: {
       flexDirection: "row",
       gap: 8,
       alignItems: "center",
     },
-
     stepRow: {
       flexDirection: "row",
       gap: 8,
       alignItems: "center",
       marginBottom: 8,
     },
-
     stepInput: {
       flex: 1,
     },
-
     flex2: { flex: 2 },
     quantityInput: { width: 90, textAlign: "center" },
-
     pickerWrapper: {
       borderWidth: 1,
-      borderColor: "#ccc",
+      borderColor: theme.colors.border,
       borderRadius: 6,
       overflow: "hidden",
       height: 42,
@@ -329,29 +340,42 @@ const stylesFactory = (theme) =>
       height: 42,
       width: 120,
     },
-
     trashButton: {
       padding: 8,
       borderRadius: 6,
     },
     trashHover: {
-      backgroundColor: "#ffdddd",
+      backgroundColor: theme.colors.rowHover,
     },
-
     actions: {
       flexDirection: "row",
       gap: 12,
       marginTop: 24,
     },
-
     buttonBase: {
       flex: 1,
       paddingVertical: 12,
       borderRadius: 8,
       alignItems: "center",
     },
-    primaryButton: { backgroundColor: "#007AFF" },
-    secondaryButton: { backgroundColor: "#f2f2f7" },
-
-    link: { color: "#007AFF", marginTop: 8 },
+    primaryButton: {
+      backgroundColor: theme.colors.buttonPrimary,
+    },
+    secondaryButton: {
+      backgroundColor: theme.colors.buttonSecondary,
+    },
+    primaryText: {
+      color: theme.colors.buttonPrimaryText,
+      fontWeight: "600",
+    },
+    secondaryText: {
+      color: theme.colors.text,
+    },
+    link: {
+      color: theme.colors.primary,
+      marginTop: 8,
+    },
+    muted: {
+      color: theme.colors.mutedText,
+    },
   });

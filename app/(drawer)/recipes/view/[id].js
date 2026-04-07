@@ -6,10 +6,14 @@ import {
   StyleSheet,
 } from "react-native";
 import { useState, useCallback } from "react";
-import { useLocalSearchParams, useFocusEffect, useRouter } from "expo-router";
+import {
+  useLocalSearchParams,
+  useFocusEffect,
+  useRouter,
+} from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../../../lib/supabase";
-import { useTheme } from "../../../../lib/theme-context";
+import { useTheme } from "../../../../lib/theme/theme-context";
 
 export default function RecipeView() {
   const { theme } = useTheme();
@@ -24,7 +28,6 @@ export default function RecipeView() {
   async function loadRecipe() {
     setLoading(true);
 
-    // ✅ 1. Read current view_count
     const { data: current } = await supabase
       .from("recipes")
       .select("view_count, title, ingredients, steps")
@@ -36,18 +39,17 @@ export default function RecipeView() {
       return;
     }
 
-    // ✅ 2. Increment safely
     await supabase
       .from("recipes")
-      .update({ view_count: (current.view_count ?? 0) + 1 })
+      .update({
+        view_count: (current.view_count ?? 0) + 1,
+      })
       .eq("id", id);
 
-    // ✅ 3. Update local state
     setRecipe(current);
     setLoading(false);
   }
 
-  // ✅ Reload when returning from edit/create
   useFocusEffect(
     useCallback(() => {
       loadRecipe();
@@ -57,7 +59,7 @@ export default function RecipeView() {
   if (loading || !recipe) {
     return (
       <View style={styles.container}>
-        <Text>Loading…</Text>
+        <Text style={styles.muted}>Loading…</Text>
       </View>
     );
   }
@@ -123,6 +125,7 @@ const stylesFactory = (theme) =>
     title: {
       fontSize: 28,
       fontWeight: "600",
+      color: theme.colors.text,
     },
     editButton: {
       flexDirection: "row",
@@ -132,7 +135,7 @@ const stylesFactory = (theme) =>
       borderRadius: 6,
     },
     editHover: {
-      backgroundColor: "#00000010",
+      backgroundColor: theme.colors.rowHover,
     },
     editText: {
       color: theme.colors.primary,
@@ -141,11 +144,16 @@ const stylesFactory = (theme) =>
     sectionTitle: {
       fontSize: 20,
       fontWeight: "600",
+      color: theme.colors.text,
       marginTop: 24,
       marginBottom: 8,
     },
     item: {
       fontSize: 15,
+      color: theme.colors.text,
       marginBottom: 6,
+    },
+    muted: {
+      color: theme.colors.mutedText,
     },
   });

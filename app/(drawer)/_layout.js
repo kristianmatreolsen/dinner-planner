@@ -11,7 +11,7 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useRouter, usePathname } from "expo-router";
-import { useTheme } from "../../lib/theme-context";
+import { useTheme } from "../../lib/theme/theme-context";
 
 const PIN_STORAGE_KEY = "drawer_pinned";
 const isWeb = Platform.OS === "web";

@@ -8,7 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabase";
 import { useRouter } from "expo-router";
-import { useTheme } from "../../lib/theme-context";
+import { useTheme } from "../../lib/theme/theme-context";
 
 export default function Home() {
   const { theme } = useTheme();
