@@ -19,15 +19,15 @@ import { UNIT_SYSTEMS, toBase, fromBase } from "../../../lib/units";
 /* Unit labels */
 const UNIT_LABELS = {
   pcs: "pcs",
-  pkg: "pkgs",
-  btl: "bottles",
+  pkg: "pkg",
+  btl: "btl",
   ml: "ml",
   l: "l",
   g: "g",
   kg: "kg",
   tsp: "tsp",
   tbsp: "tbsp",
-  cup: "cups",
+  cup: "cup",
   oz: "oz",
   lb: "lb",
 };
