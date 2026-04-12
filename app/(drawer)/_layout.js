@@ -2,6 +2,7 @@ import { Drawer } from "expo-router/drawer";
 import {
   View,
   Text,
+  Image,
   Pressable,
   StyleSheet,
   Platform,
@@ -198,7 +199,7 @@ export default function DrawerLayout() {
           {navItem("Home", "home-outline", "/")}
           {navItem("Planner", "calendar-outline", "/planner")}
           {navItem("Recipes", "restaurant-outline", "/recipes")}
-          {navItem("Shopping list", "cart-outline", "/shopping")}
+          {navItem("Shopping List", "cart-outline", "/shopping")}
           {navItem("Settings", "settings-outline", "/settings")}
         </View>
       )}
