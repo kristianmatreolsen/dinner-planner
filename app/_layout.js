@@ -1,4 +1,4 @@
-// app/_layout.js
+// root layout provider
 
 import { Slot } from "expo-router";
 import { ThemeProvider } from "../lib/theme/theme-context";

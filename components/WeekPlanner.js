@@ -13,7 +13,7 @@ import { getMonday, addDays, formatISO } from "../lib/dates";
 import { useTheme } from "../lib/theme/theme-context";
 import { useRouter } from "expo-router";
 
-/* ================== CONSTANTS ================== */
+/* Constants */
 
 const DAYS = [
   "Monday",
@@ -25,10 +25,10 @@ const DAYS = [
   "Sunday",
 ];
 
-// ✅ Do not allow navigating more than 4 weeks back
+// prevent navigating more than 4 weeks into the past
 const MIN_WEEK_OFFSET = -4;
 
-/* ================== HELPERS ================== */
+/* Helpers */
 
 function formatDateRange(start, end) {
   const opts = { month: "short", day: "numeric" };
@@ -61,7 +61,7 @@ function getISOWeekYear(date) {
   return d.getUTCFullYear();
 }
 
-/* ================== MAIN COMPONENT ================== */
+/* Main component */
 
 export default function WeekPlanner() {
   const { theme } = useTheme();
@@ -164,7 +164,7 @@ export default function WeekPlanner() {
     loadWeek();
   }
 
-  /* ================== DATE LOGIC ================== */
+  /* Date logic */
 
   const monday = getMonday(new Date());
   monday.setDate(monday.getDate() + weekOffset * 7);
@@ -177,7 +177,7 @@ export default function WeekPlanner() {
   const weekStatus =
     weekOffset === 0 ? "Current" : weekOffset < 0 ? "Past" : "Future";
 
-  /* ================== UI ================== */
+  /* UI */
 
   return (
     <View style={styles.container}>
@@ -363,7 +363,7 @@ export default function WeekPlanner() {
   );
 }
 
-/* ================== STYLES ================== */
+/* Styles */
 
 const stylesFactory = (theme) =>
   StyleSheet.create({
@@ -430,7 +430,7 @@ const stylesFactory = (theme) =>
 
     colDay: { width: 120, color: theme.colors.text },
     colDate: { width: 80, color: theme.colors.mutedText },
-    colDinner: { flex: 1, paddingRight: 12 },
+    colDinner: { flex: 1, paddingRight: 12, color: theme.colors.text },
     colRecipe: { width: 140, paddingRight: 12 },
     colRemove: { width: 120 },
 
