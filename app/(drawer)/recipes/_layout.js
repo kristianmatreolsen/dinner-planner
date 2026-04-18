@@ -15,19 +15,19 @@ export default function RecipesLayout() {
         headerTintColor: theme.colors.text,
       }}
     >
-      {/* Recipes list */}
+      // Recipes list
       <Stack.Screen
         name="index"
         options={{ title: "Recipes" }}
       />
 
-      {/* View recipe */}
+      // View recipe
       <Stack.Screen
         name="view/[id]"
         options={{ title: "Recipe" }}
       />
 
-      {/* Edit / Create recipe */}
+      // Edit / Create recipe
       <Stack.Screen
         name="[id]"
         options={{ title: "Edit recipe" }}

@@ -195,7 +195,7 @@ export default function RecipeList() {
   );
 }
 
-/* ================= STYLES ================= */
+/* Styles */
 
 const styles = (theme) =>
   StyleSheet.create({
